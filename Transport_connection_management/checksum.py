@@ -16,14 +16,14 @@ def cal_checksum(data: bytes, byteorder='little'):
     length = len(data)
     checksum = 0
     for i in range(0, length):
-        checksum += int.from_bytes(data[i:i+1], byteorder, signed=False)
+        checksum += int.from_bytes(data[i: i+1], byteorder, signed=False)
         checksum &= 0xFF # 强制截断
          
     return checksum
 
 def main():
     # 测试用例
-    data = b'hello world!'
+    data = b'0'
     print(cal_checksum(data))
 
 
