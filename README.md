@@ -9,7 +9,6 @@ be 'in flight' at a time), and can have arbitrary delay and loss rates.  Your
 job will be to create and implement a protocol over this connection that
 correctly transfers data, in a reasonable amount of time.
 
-
 ### Writing Your Solution
 
 This repo contains several tools that will help you simulate and test your
@@ -56,9 +55,9 @@ also reproduced below.
 
     usage: tester.py [-h] [-p PORT] [-l LOSS] [-d DELAY] [-b BUFFER] -f FILE
                     [-r RECEIVE] [-s] [-v]
-
+    
     Utility script for testing project solutions under user set conditions.
-
+    
     optional arguments:
     -h, --help            show this help message and exit
     -p PORT, --port PORT  The port to simulate the lossy wire on (defaults to
@@ -77,7 +76,6 @@ also reproduced below.
                             was successful, instead of a more verbose description
                             of the result.
     -v, --verbose         Enable extra verbose mode.
-
 
 For example, to see how your solution performs when transmitting a text file,
 with a 5% loss rate, and with a latency of 100ms, you could use the following:
@@ -113,7 +111,6 @@ with a 5% loss rate, and with a latency of 100ms, you could use the following:
    connection finish without user assistance, even if packet losses occur,
    while guaranteeing that the entire file is transferred. Look at the
    FIN/FINACK/ACK sequence in TCP for ideas.
-
 
 ### Grading
 
