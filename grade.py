@@ -57,26 +57,6 @@ TEST_CASES = [
     TestCase(TestArguments("grading_data/test-5.bin", "0.1", "0.1", "50"), 70),
     TestCase(TestArguments("grading_data/test-6.bin", "0.12", "0.2", "60"), 80),
     TestCase(TestArguments("grading_data/test-6.bin", "0.2", "0.1", "70"), 80),
-
-    # TestCase(TestArguments("grading_data/test-1.bin", "0", ".5", "10"), 9),
-    # TestCase(TestArguments("grading_data/test-1.bin", "0", ".5", "10"), 15),
-    # TestCase(TestArguments("grading_data/test-2.bin", "0", "0.1", "20"), 12),
-    # TestCase(TestArguments("grading_data/test-3.bin", "0", ".01", "30"), 16),
-    # TestCase(TestArguments("grading_data/test-3.bin", "0", ".01", "30"), 25),
-    # TestCase(TestArguments("grading_data/test-4.bin", "0", ".1", "40"), 9),
-    # TestCase(TestArguments("grading_data/test-4.bin", "0", ".2", "40"), 15),
-    # TestCase(TestArguments("grading_data/test-5.bin", "0", ".01", "500"), 45),
-    # TestCase(TestArguments("grading_data/test-6.bin", "0", ".02", "600"), 52),
-    # TestCase(TestArguments("grading_data/test-6.bin", "0", ".01", "300"), 60),
-
-
-
-    # TestCase(TestArguments("grading_data/test-1.bin", "0", ".5", "10"), 7),
-    # TestCase(TestArguments("grading_data/test-2.bin", "0", "0.1", "20"), 5),
-    # TestCase(TestArguments("grading_data/test-3.bin", "0", ".01", "30"), 6),
-    # TestCase(TestArguments("grading_data/test-4.bin", "0.1", ".1", "40"), 6),
-    # TestCase(TestArguments("grading_data/test-5.bin", "0.1", ".01", "50"), 32),
-    # TestCase(TestArguments("grading_data/test-6.bin", "0", ".01", "60"), 12),
 ]
 
 TOTAL_SCORE = 0
@@ -98,7 +78,7 @@ for CASE_NUM, A_CASE in enumerate(TEST_CASES):
     print("----------")
 
     port = 9999
-    process = Popen(["lsof", "-i", ":{0}".format(port)], stdout=PIPE, stderr=PIPE)
+    process = Popen(["lsof", "-i", ":{0}".format(port)], stdout=PIPE, stderr=PIPE, shell=True)
     stdout, stderr = process.communicate()
     for process in str(stdout.decode("utf-8")).split("\n")[1:]:
         data = [x for x in process.split(" ") if x != '']
