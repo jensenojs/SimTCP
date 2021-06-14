@@ -19,7 +19,28 @@ from Transport_connection_management.Control import *
 
 
 '''
-使用二进制的split作为切分首部段和信息段的符号, 会参与校验和的计算
+—————————————
+0. add the checksum
+    i. 使用Class封装，模拟一个TCP头，与原本信息进行拼接后进行传输
+    ii. 在i的基础上，尝试性地添加checksum功能
+—————————————
+
+—————————————
+1. add the auto request
+    i. 发现有覆写的问题，添加停止等待的机制（的基础框架）
+    ii. 同时将首部段和信息段的拼接封装成函数放入Control.py中
+    iii. 将bug进行了修复, 至此，已经完成了Rdt2.0的功能，虽然目前框架代码还不能对它做出检测就是了
+—————————————
+
+—————————————
+2. aiming to solve: what if the ack/nak got wrong （Rdt2.2）/ what if the package lost (Rdt3.0)?
+    i. 设定重置时间, 如果没有收到，则通过1.i搭建起来的反馈框架，发出需要的请求
+        a. 引入序列号, 面向ack进行处理
+            同时跨越2.1，对ack采用累计确认机制
+        b. 如何计算RTT，什么时候决定要求重传，遇到重复分组后该怎么办
+            序列号虽然能够解决这个问题，但是实现的接口上需要设计 
+—————————————
+
 '''
 
 
@@ -34,18 +55,6 @@ def send(sock: socket.socket, data: bytes):
                 over a simulated lossy network.
         data -- A bytes object, containing the data to send over the network.
 
-    —————————————
-    0. add the checksum
-        阶段任务：1. 使用Class封装，模拟一个TCP头，与原本信息进行拼接后进行传输
-                 2. 在1的基础上，尝试性地添加checksum功能
-    —————————————
-
-    —————————————
-    1. add the auto request
-        阶段任务：1. 发现有覆写的问题，添加停止等待的机制, 同时将首部段和信息段的拼接封装成函数放入Control.py中
-                 2. 
-    —————————————
-
     """
 
     # Naive implementation where we chunk the data to be sent into
@@ -53,10 +62,7 @@ def send(sock: socket.socket, data: bytes):
     # over the network, pausing half a second between sends to let the
     # network "rest" :)
     logger = util.logging.get_logger("project-sender")
-    
-
     temp = TcpHeader()
-
     # 设置切片的大小
     chunk_size = set_chunk_size(temp)
     pause = .1
@@ -65,7 +71,8 @@ def send(sock: socket.socket, data: bytes):
     将TCP的首部和data进行拼接，添加校验和的功能，然后再发送
     '''
 
-    offsets = range(0, len(data), util.MAX_PACKET)
+    # offsets = range(0, len(data), util.MAX_PACKET)
+    offsets = range(0, len(data), chunk_size)
     for chunk in [data[i: i + chunk_size] for i in offsets]:
 
         tcpheader_send = TcpHeader()
@@ -73,7 +80,7 @@ def send(sock: socket.socket, data: bytes):
         data = pack_tcp_packet(tcpheader_send, chunk)
         sock.send(data)
         control_data = sock.recv(util.MAX_PACKET)
-        tcpheader_resv, _, place = unpack_tcp_packet(control_data)
+        tcpheader_resv, _, __ = unpack_tcp_packet(control_data)
         if tcpheader_resv.ACK == 1:
             pass
         else:
@@ -99,14 +106,6 @@ def recv(sock: socket.socket, dest: io.BufferedIOBase) -> int:
 
     Return:
         The number of bytes written to the destination.
-        
-    —————————————
-    0. add the checksum
-    —————————————
-
-    —————————————
-    1. add the auto request
-    —————————————
 
     """
     # tcpheader_resv = TcpHeader()

@@ -72,16 +72,22 @@ def unpack_tcp_packet(data: bytes):
     place = data.find(split)
 
     if place == -1:
-        pass
+        assert 0
     else:
         tcpheader_resv = pickle.loads(data[:place])    
         value_data = data[place + len(split): ]
+        # if value_data != []:
+        #     print("i am here")
         return tcpheader_resv, value_data, place
+        # else:
+        #     print("i am here too")
+        #     return tcpheader_resv
 
-
+'''
         87 173 259 345
 
 
         345 - 259 = 86
         259 - 173 = 86
         173 - 87 = 86
+'''

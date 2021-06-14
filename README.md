@@ -39,7 +39,6 @@ there are already two packets traveling to their destination (in either
 direction), the third packet will be dropped, so it is important that you get
 your timeouts and your acknowledgments right.
 
-
 ### Testing Your Solution
 
 You can use the provided `tester.py` script when testing your solution.  This
@@ -127,7 +126,6 @@ Each test case will be scored accordingly:
 | Transmission takes longer than the max time    |             0 |
 | Successful transmission, but low throughput    |             1 |
 | Successful transmission, fast throughput       |             2 |
-
 
 If your program exits normally before the timeout, but the content of the
 received file is invalid, then **zero points** are awarded.
