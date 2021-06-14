@@ -11,12 +11,9 @@ import struct
 import util
 import util.logging
 
-import pickle
-import sys
 from Transport_connection_management.checksum import cal_checksum
 from Transport_connection_management.SimTCPHeader import TcpHeader
 from Transport_connection_management.Control import *
-
 
 '''
 —————————————
@@ -38,7 +35,7 @@ from Transport_connection_management.Control import *
         a. 引入序列号, 面向ack进行处理
             同时跨越2.1，对ack采用累计确认机制
         b. 如何计算RTT，什么时候决定要求重传，遇到重复分组后该怎么办
-            序列号虽然能够解决这个问题，但是实现的接口上需要设计 
+            序列号虽然能够解决这个问题，但是实现的接口上需要设计
 —————————————
 
 '''
@@ -57,35 +54,44 @@ def send(sock: socket.socket, data: bytes):
 
     """
 
-    # Naive implementation where we chunk the data to be sent into
-    # packets as large as the network will allow, and then send them
-    # over the network, pausing half a second between sends to let the
-    # network "rest" :)
     logger = util.logging.get_logger("project-sender")
-    temp = TcpHeader()
-    # 设置切片的大小
-    chunk_size = set_chunk_size(temp)
+    chunk_size = set_chunk_size()
     pause = .1
 
     '''
-    将TCP的首部和data进行拼接，添加校验和的功能，然后再发送
+    0. 将TCP的首部和data进行拼接，添加校验和的功能
+    1. 添加停止等待框架
+    2. 添加序列号
+    3. 
     '''
 
-    # offsets = range(0, len(data), util.MAX_PACKET)
+    '''
+    三次握手！
+    '''
+
     offsets = range(0, len(data), chunk_size)
     for chunk in [data[i: i + chunk_size] for i in offsets]:
 
+        # 打包
         tcpheader_send = TcpHeader()
-        # logger.info("the checksum that stole is %d ", tcpheader_send.checksum)
         data = pack_tcp_packet(tcpheader_send, chunk)
+
+
+        # ------------
+        # 使用状态机对其进行描述
         sock.send(data)
         control_data = sock.recv(util.MAX_PACKET)
-        tcpheader_resv, _, __ = unpack_tcp_packet(control_data)
+        tcpheader_resv = unpack_tcp_packet(control_data)
         if tcpheader_resv.ACK == 1:
             pass
         else:
             assert 0
         logger.info("Sender receive control message from receiver")
+
+
+        # ------------
+
+
 
 
         logger.info("Pausing for %f seconds", round(pause, 2))
@@ -119,10 +125,13 @@ def recv(sock: socket.socket, dest: io.BufferedIOBase) -> int:
             break
         
         logger.info("Received %d bytes", len(data))
-        tcpheader_resv, value_data, place = unpack_tcp_packet(data)
-        logger.info("value data is %s", value_data.decode())
+
+
+        # ------------
+
+        tcpheader_resv, value_data = unpack_tcp_packet(data)
         tcpheader_control = TcpHeader()
-        if tcpheader_resv.checksum == cal_checksum(data[place:]):
+        if tcpheader_resv.checksum == cal_checksum(split+value_data):
             dest.write(value_data)
             num_bytes += len(data)
             dest.flush()
@@ -133,5 +142,7 @@ def recv(sock: socket.socket, dest: io.BufferedIOBase) -> int:
         sock.send(control_data)
         logger.info("Receiver send control message to sender!")
         
+        # ------------
         
+
     return num_bytes
