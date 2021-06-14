@@ -12,8 +12,30 @@ from .SimTCPHeader import TcpHeader
 from .checksum import cal_checksum
 import util
 import sys
+from enum import Enum
 
 split = b'split'
+
+class RecvStateEnum(Enum):
+    """
+    @description  :
+        枚举接收方可能会存在的各种状态
+    ---------
+    @Attributes  :
+        1. 期待接受到序列号为0的数据包
+        2. 期待接受到序列号为1的数据包 
+        3. 校验和不匹配的数据
+        4. 收到重复分组 
+    -------
+    """
+    expect_seq0 = 0
+    expect_seq1= 1
+    checksum_match = 2
+    checksum_not_match = 3
+    get_repeated_packet = 4
+    get_expected_packet = 5
+
+
 
 def set_chunk_size(waste=100):
     """

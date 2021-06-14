@@ -119,7 +119,15 @@ def recv(sock: socket.socket, dest: io.BufferedIOBase) -> int:
     # Naive solution, where we continually read data off the socket
     # until we don't receive any more data, and then return.
     num_bytes = 0
+
+
+
     while True:
+
+        '''
+        三次握手！
+        '''
+        
         data = sock.recv(util.MAX_PACKET)
         if not data:
             break
@@ -128,8 +136,9 @@ def recv(sock: socket.socket, dest: io.BufferedIOBase) -> int:
 
 
         # ------------
-
+        
         tcpheader_resv, value_data = unpack_tcp_packet(data)
+
         tcpheader_control = TcpHeader()
         if tcpheader_resv.checksum == cal_checksum(split+value_data):
             dest.write(value_data)

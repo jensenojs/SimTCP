@@ -7,14 +7,10 @@
 @version            :1.0
 '''
 
-from enum import Enum
-
-# 为了能在本路径下运行测试用例，先暂时这么写...
-if __name__ == '__main__':
-    from SimTCPHeader import TcpHeader
-else:
-    from .SimTCPHeader import TcpHeader
-
+from .SimTCPHeader import TcpHeader
+from .Control import *
+import socket
+import io
 
 class RecvStateMachine:
     """
@@ -27,6 +23,8 @@ class RecvStateMachine:
         因此我们就有了修订版的rdt2.1
         
         其实就是维护一个状态变量, 当收到正确的信息的时候，我们回送ACK，然后更改状态
+
+        然后进一步地, 我们应该把检查校验和的逻辑也放进来
     ---------
     @Attributes  :
     -------
@@ -37,95 +35,94 @@ class RecvStateMachine:
     def __str__(self):
         return "This is the demo of receiver state"
 
-    class StateEnum(Enum):
-        expect_seq0 = 0
-        expect_seq1= 1
-
     def get_current_state(self):
         """
         @description  :
-            查看当前状态 
+            查看当前状态
         ---------
         @param  :
             None 
         -------
         @Returns  :
-            期待收到的seq编号
+            期待收到的seq编号的状态
         -------
         """
         # 这里后期把检验的逻辑也给加进来好了 
-        if self.current_state != None:                
+        if self.current_state != None:
             return self.current_state
         else:
-            assert  0, "should not reach here"
+            assert  0, "Have not start yet!"
+
+
+    def check_the_checksum_of_header(self, tcpheader: TcpHeader, value_data: bytes):
+        """
+        @description  :
+            比较校验和是否相等
+        ---------
+        @param  :
+        
+        -------
+        @Returns  :
+        
+        -------
+        """        
+        if tcpheader.checksum == cal_checksum(split + value_data):
+            return RecvStateEnum.checksum_match
+        else:
+            return RecvStateEnum.checksum_not_match
+
 
     def check_the_seq_of_header(self, tcpheader: TcpHeader):
-        if self.current_state.value == tcpheader.seq:
-            if self.current_state == self.StateEnum.expect_seq0:
-                self.current_state = self.StateEnum.expect_seq1
+        """
+        @description  :
+            检查发送包的序列号是否为接收者所期待的，同时完成初始化
+        ---------
+        @param  :
+            发送过来的TcpHeader
+        -------
+        @Returns  :
+            要么返回收到期待包裹的指令
+                此时将current_state 转变为下一个expect的包裹
+            要么返回收到重复包裹的指令
+                此时不改变状态
+        -------
+        """
+        if self.current_state != None:
+            if self.current_state.value == tcpheader.seq:
+                if self.current_state == RecvStateEnum.expect_seq0:
+                    self.current_state = RecvStateEnum.expect_seq1
+                else:
+                    self.current_state = RecvStateEnum.expect_seq0
+                return RecvStateEnum.get_expected_packet
             else:
-                self.current_state = self.StateEnum.expect_seq0
-            return True 
+                return RecvStateEnum.get_repeated_packet
         else:
-            return False
-
-    def set_current_state(self, tcpheader: TcpHeader):
-        if self.current_state == None:                                    
+            '''
+            这里其实是假设校验和能确保不重不漏, seq位如果出了错误, 其实不见得能检测出来的
+            '''
             if tcpheader.seq == 0:
-                self.current_state = self.StateEnum.expect_seq1
-            elif tcpheader.seq == 1:
-                self.current_state = self.StateEnum.expect_seq0
+                self.current_state = RecvStateEnum.expect_seq1
             else:
-                return False 
-        else:                
-            if self.check_the_seq_of_header(tcpheader):
-                return True
-            else:
-                return False
+                self.current_state = RecvStateEnum.expect_seq0
+            return RecvStateEnum.get_expected_packet
 
-
-def main():
-    """
-    @description  :
-        简单地测试用例，没什么好看的
-    ---------
-    @param  :
-    
-    -------
-    @Returns  :
-    
-    -------
-    """
-    
-    
-    testheader = TcpHeader()
-    testheader.seq = 0
-    testreceiver = RecvStateMachine()
-    testreceiver.set_current_state(testheader)
-    print(testreceiver.get_current_state())
-    print("\n\n")
-    print("expect 1 but got 0")
-    testreceiver.set_current_state(testheader)
-    print(testreceiver.get_current_state())
-
-    print("\n\n")
-
-    print("Now we got one")
-    testheader.seq = 1
-    testreceiver.set_current_state(testheader)
-    print(testreceiver.get_current_state())
-    print("\n\n")
-    print("Show expected 0")    
-    print("expect 0 but got 1")
-    testreceiver.set_current_state(testheader)
-    print(testreceiver.get_current_state())
-
-
-    print("Now we got 0")
-    testheader.seq = 0
-    testreceiver.set_current_state(testheader)
-    print(testreceiver.get_current_state())
- 
-
-if __name__ == '__main__':
-    main()
+    def reaction_to_tcp(self, tcpheader_resv: TcpHeader , value_data: bytes):
+        """
+        @description  :
+            处理每一个TCP报文的主函数
+                2. 检查TCP首部的校验和，如果错了，将该状态信息返回
+                3. 进一步检查序列号，如果不是期望的包裹，则要求重发
+        ---------
+        @param  :
+        
+        -------
+        @Returns  :
+        
+        -------
+        """
+        Result_of_checknum = self.check_the_checksum_of_header(tcpheader_resv, value_data)
+        if Result_of_checknum == RecvStateEnum.checksum_not_match:
+            return Result_of_checknum
+        
+        Result_of_seq_of_header = self.check_the_seq_of_header(tcpheader_resv)
+        return Result_of_seq_of_header
