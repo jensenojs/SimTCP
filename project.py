@@ -56,6 +56,7 @@ def send(sock: socket.socket, data: bytes):
     logger = util.logging.get_logger("project-sender")
     chunk_size = set_chunk_size()
     pause = .1
+    sock.settimeout(0.5)
 
     '''
     0. 将TCP的首部和data进行拼接，添加校验和的功能
@@ -88,7 +89,22 @@ def send(sock: socket.socket, data: bytes):
         # last_sended_data = data
         state_meachine.set_current_state(tcpheader_send)
 
-        control_data = sock.recv(util.MAX_PACKET)
+        cum = 100
+        while cum != 0:
+            try:
+                control_data = sock.recv(util.MAX_PACKET)
+                break
+            except:
+                '''
+                如果引发timeout异常,可能是sender传出去的包丢了，也可能是receiver传过来的包丢了
+                但是不管如何，都需要再发一次
+                '''
+                sock.send(data)
+                cum = cum - 1
+
+        if(cum == 0):
+            assert 0, "what the fucking the network!"
+
         tcpheader_resv = unpack_tcp_packet(control_data)
 
         state = state_meachine.reaction_to_tcp(tcpheader_resv)
@@ -140,6 +156,7 @@ def recv(sock: socket.socket, dest: io.BufferedIOBase) -> int:
     # until we don't receive any more data, and then return.
     num_bytes = 0
 
+    # sock.settimeout(0.5)
     state_machine = RecvStateMachine()
 
     while True:
