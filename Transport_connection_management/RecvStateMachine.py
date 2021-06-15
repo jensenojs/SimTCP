@@ -9,8 +9,6 @@
 
 from .SimTCPHeader import TcpHeader
 from .Control import *
-import socket
-import io
 
 class RecvStateMachine:
     """
@@ -27,13 +25,16 @@ class RecvStateMachine:
         然后进一步地, 我们应该把检查校验和的逻辑也放进来
     ---------
     @Attributes  :
+        current_state记录的是当前状态机期待接受序列号为0/1的TCP报文
+        每一轮的控制报文中的ACK该定什么值，由本状态机的ack来决定
     -------
     """
     def __init__(self):
-        self.current_state = None 
+        self.current_state = None
+        self.ack = None
 
     def __str__(self):
-        return "This is the demo of receiver state"
+        return "This is the demo of receiver state machine"
 
     def get_current_state(self):
         """
@@ -53,7 +54,21 @@ class RecvStateMachine:
         else:
             assert  0, "Have not start yet!"
 
+    def get_ack(self):
+        """
+        @description  :
+            通过状态机当前状态，确认向发送方返回的ack的值 
+        ---------
+        @param  :
+        
+        -------
+        @Returns  :
+            接收方向发送方返回时，被设置的ack 
+        -------
+        """
 
+        return self.ack
+        
     def check_the_checksum_of_header(self, tcpheader: TcpHeader, value_data: bytes):
         """
         @description  :
@@ -70,7 +85,6 @@ class RecvStateMachine:
             return RecvStateEnum.checksum_match
         else:
             return RecvStateEnum.checksum_not_match
-
 
     def check_the_seq_of_header(self, tcpheader: TcpHeader):
         """
@@ -90,19 +104,24 @@ class RecvStateMachine:
         if self.current_state != None:
             if self.current_state.value == tcpheader.seq:
                 if self.current_state == RecvStateEnum.expect_seq0:
+                    self.ack = 0
                     self.current_state = RecvStateEnum.expect_seq1
                 else:
+                    self.ack = 1
                     self.current_state = RecvStateEnum.expect_seq0
                 return RecvStateEnum.get_expected_packet
             else:
                 return RecvStateEnum.get_repeated_packet
         else:
             '''
+            初始化
             这里其实是假设校验和能确保不重不漏, seq位如果出了错误, 其实不见得能检测出来的
             '''
             if tcpheader.seq == 0:
+                self.ack = 0
                 self.current_state = RecvStateEnum.expect_seq1
             else:
+                self.ack = 1
                 self.current_state = RecvStateEnum.expect_seq0
             return RecvStateEnum.get_expected_packet
 
@@ -114,10 +133,15 @@ class RecvStateMachine:
                 3. 进一步检查序列号，如果不是期望的包裹，则要求重发
         ---------
         @param  :
-        
+                本次传输的tcp头部和信息体 
         -------
         @Returns  :
-        
+                可能返回三种状态：
+                    校验和出错，此时要求重发
+                    校验和正确，但是这个不是我们想要的序列号
+                        此时会通过控制报文的ack，向接收方再次发送确认自己收到的序列号
+                    校验和正确，且是我们想要的序列号
+                        此时会通过控制报文的ack，向接收方发送确认自己收到的序列号
         -------
         """
         Result_of_checknum = self.check_the_checksum_of_header(tcpheader_resv, value_data)

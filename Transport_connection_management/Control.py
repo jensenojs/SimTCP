@@ -35,6 +35,22 @@ class RecvStateEnum(Enum):
     get_repeated_packet = 4
     get_expected_packet = 5
 
+class SendStateEnmu(Enum):
+    """
+    @description  :
+        枚举发送方可能会存在的各种状态
+    ---------
+    @Attributes  :
+    
+    -------
+    """
+    had_send_seq0 = 0
+    had_send_seq1 = 1
+    send_the_next = 2
+    need_to_resend = 3
+    checksum_match = 4
+    checksum_not_match = 5
+
 
 
 def set_chunk_size(waste=100):

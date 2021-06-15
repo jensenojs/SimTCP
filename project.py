@@ -6,12 +6,11 @@ be modified.
 import socket
 import io
 import time
-import typing
-import struct
 import util
 import util.logging
 
-from Transport_connection_management.checksum import cal_checksum
+from Transport_connection_management.SendStateMachine import SendStateMachine
+from Transport_connection_management.RecvStateMachine import RecvStateMachine
 from Transport_connection_management.SimTCPHeader import TcpHeader
 from Transport_connection_management.Control import *
 
@@ -32,7 +31,7 @@ from Transport_connection_management.Control import *
 —————————————
 2. aiming to solve: what if the ack/nak got wrong （Rdt2.2）/ what if the package lost (Rdt3.0)?
     i. 设定重置时间, 如果没有收到，则通过1.i搭建起来的反馈框架，发出需要的请求
-        a. 引入序列号, 面向ack进行处理
+        a. 引入序列号, ack进行处理
             同时跨越2.1，对ack采用累计确认机制
         b. 如何计算RTT，什么时候决定要求重传，遇到重复分组后该怎么办
             序列号虽然能够解决这个问题，但是实现的接口上需要设计
@@ -61,7 +60,7 @@ def send(sock: socket.socket, data: bytes):
     '''
     0. 将TCP的首部和data进行拼接，添加校验和的功能
     1. 添加停止等待框架
-    2. 添加序列号
+    2. 添加有限状态机, 使用序列号功能
     3. 
     '''
 
@@ -69,29 +68,50 @@ def send(sock: socket.socket, data: bytes):
     三次握手！
     '''
 
+    state_meachine = SendStateMachine()
+
+    # 缓存上一次发送的TCP报文，以准备第二次发送
+
+    # 完成发送报文的初始化
+    tcpheader_send = TcpHeader()
+    tcpheader_send.seq = 0
+
+
     offsets = range(0, len(data), chunk_size)
     for chunk in [data[i: i + chunk_size] for i in offsets]:
-
-        # 打包
-        tcpheader_send = TcpHeader()
         data = pack_tcp_packet(tcpheader_send, chunk)
-
 
         # ------------
         # 使用状态机对其进行描述
         sock.send(data)
+
+        # last_sended_data = data
+        state_meachine.set_current_state(tcpheader_send)
+
         control_data = sock.recv(util.MAX_PACKET)
         tcpheader_resv = unpack_tcp_packet(control_data)
-        if tcpheader_resv.ACK == 1:
-            pass
+
+        state = state_meachine.reaction_to_tcp(tcpheader_resv)
+
+        if state == SendStateEnmu.need_to_resend:
+            while True:
+                sock.send(data)
+                logger.info(state)
+                
+                control_data = sock.recv(util.MAX_PACKET)
+                tcpheader_resv = unpack_tcp_packet(control_data)
+                state = state_meachine.reaction_to_tcp(tcpheader_resv)
+
+                if state == SendStateEnmu.send_the_next:
+                    break
         else:
-            assert 0
-        logger.info("Sender receive control message from receiver")
-
-
+            # 修改序列号, 不然接受方是不愿意收的
+            if tcpheader_send.seq == 0:
+                tcpheader_send.seq = 1
+            else:
+                tcpheader_send.seq = 0
+            logger.info(state)
         # ------------
-
-
 
 
         logger.info("Pausing for %f seconds", round(pause, 2))
@@ -120,26 +140,26 @@ def recv(sock: socket.socket, dest: io.BufferedIOBase) -> int:
     # until we don't receive any more data, and then return.
     num_bytes = 0
 
-
+    state_machine = RecvStateMachine()
 
     while True:
 
         '''
         三次握手！
         '''
-        
+
         data = sock.recv(util.MAX_PACKET)
         if not data:
             break
-        
+
         logger.info("Received %d bytes", len(data))
 
-
+        tcpheader_control = TcpHeader()
         # ------------
-        
+
         tcpheader_resv, value_data = unpack_tcp_packet(data)
 
-        tcpheader_control = TcpHeader()
+        '''
         if tcpheader_resv.checksum == cal_checksum(split+value_data):
             dest.write(value_data)
             num_bytes += len(data)
@@ -149,9 +169,26 @@ def recv(sock: socket.socket, dest: io.BufferedIOBase) -> int:
             pass
         control_data = pack_tcp_packet(tcpheader_control)
         sock.send(control_data)
+
+        '''
+        state = state_machine.reaction_to_tcp(tcpheader_resv, value_data)
+        
+        # 如果成功接受，才会更改ack的值，并且进一步地将数据写入io
+        tcpheader_control.ACK = state_machine.get_ack()
+        if state == RecvStateEnum.get_expected_packet:
+            dest.write(value_data)
+            num_bytes += len(data)
+            dest.flush()
+        else:
+        # 收到了重复发送的包裹，可能是因为之前回送的ack丢失了，所以什么都不做再发一次就好了
+            pass
+
+        control_data = pack_tcp_packet(tcpheader_control)
+        sock.send(control_data)
+
         logger.info("Receiver send control message to sender!")
-        
+
         # ------------
-        
+
 
     return num_bytes
