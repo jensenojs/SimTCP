@@ -9,7 +9,6 @@ be 'in flight' at a time), and can have arbitrary delay and loss rates.  Your
 job will be to create and implement a protocol over this connection that
 correctly transfers data, in a reasonable amount of time.
 
-
 ### Writing Your Solution
 
 This repo contains several tools that will help you simulate and test your
@@ -40,7 +39,6 @@ there are already two packets traveling to their destination (in either
 direction), the third packet will be dropped, so it is important that you get
 your timeouts and your acknowledgments right.
 
-
 ### Testing Your Solution
 
 You can use the provided `tester.py` script when testing your solution.  This
@@ -56,9 +54,9 @@ also reproduced below.
 
     usage: tester.py [-h] [-p PORT] [-l LOSS] [-d DELAY] [-b BUFFER] -f FILE
                     [-r RECEIVE] [-s] [-v]
-
+    
     Utility script for testing project solutions under user set conditions.
-
+    
     optional arguments:
     -h, --help            show this help message and exit
     -p PORT, --port PORT  The port to simulate the lossy wire on (defaults to
@@ -78,11 +76,9 @@ also reproduced below.
                             of the result.
     -v, --verbose         Enable extra verbose mode.
 
-
 For example, to see how your solution performs when transmitting a text file,
 with a 5% loss rate, and with a latency of 100ms, you could use the following:
 `python3 tester.py --file test_data.txt --loss .65 --delay 0.3 --buffer 1 --verbose`.
-
 
 ### Hints and Suggestions
 
@@ -114,7 +110,6 @@ with a 5% loss rate, and with a latency of 100ms, you could use the following:
    while guaranteeing that the entire file is transferred. Look at the
    FIN/FINACK/ACK sequence in TCP for ideas.
 
-
 ### Grading
 
 You solution will be graded by using it to transfer six different files,
@@ -130,7 +125,6 @@ Each test case will be scored accordingly:
 | Transmission takes longer than the max time    |             0 |
 | Successful transmission, but low throughput    |             1 |
 | Successful transmission, fast throughput       |             2 |
-
 
 If your program exits normally before the timeout, but the content of the
 received file is invalid, then **zero points** are awarded.
